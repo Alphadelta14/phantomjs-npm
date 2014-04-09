@@ -69,6 +69,9 @@ with an additional build number that is used for revisions to the installer.
 As such `1.8.0-1` will `1.8.0-2` will both install PhantomJs 1.8 but the latter
 has newer changes to the installer.
 
+The `1.10.0-a` is a rush release containing necessary fixes to allow for secure
+websockets.
+
 A Note on PhantomJS
 -------------------
 
