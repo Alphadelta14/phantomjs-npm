@@ -51,7 +51,8 @@
     "npmconf": "0.0.24",
     "mkdirp": "0.3.5",
     "rimraf": "~2.2.2",
-    "which": "~1.0.5"
+    "which": "~1.0.5",
+    "request": "~2.30.0"
   },
   "devDependencies": {
     "nodeunit": "~0.7.4"

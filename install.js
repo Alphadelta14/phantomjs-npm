@@ -11,6 +11,7 @@ var cp = require('child_process')
 var fs = require('fs')
 var helper = require('./lib/phantomjs')
 var http = require('http')
+var request = require('request')
 var kew = require('kew')
 var ncp = require('ncp')
 var npmconf = require('npmconf')
@@ -21,7 +22,7 @@ var url = require('url')
 var util = require('util')
 var which = require('which')
 
-var downloadUrl = 'https://github.com/Alphadelta14/phantomjs/archive/release_' + helper.version + '-'
+var downloadUrl = 'https://github.com/Alphadelta14/phantomjs/archive/release_' + helper.remote + '-'
 
 var originalPath = process.env.PATH
 
@@ -110,6 +111,7 @@ whichDeferred.promise
     return copyIntoPlace(extractedPath, pkgPath)
   })
   .then(function () {
+    console.log('Copied');
     var location = process.platform === 'win32' ?
         path.join(pkgPath, 'phantomjs.exe') :
         path.join(pkgPath, 'bin' ,'phantomjs')
@@ -190,7 +192,7 @@ function getRequestOptions(conf) {
 
     return options
   } else {
-    return url.parse(downloadUrl)
+    return {'uri': url.parse(downloadUrl)}
   }
 }
 
@@ -203,34 +205,16 @@ function requestBinary(requestOptions, filePath) {
   var writePath = filePath + '-download-' + Date.now()
   var outFile = fs.openSync(writePath, 'w')
 
-  var client = http.get(requestOptions, function (response) {
-    var status = response.statusCode
-    console.log('Receiving...')
-
-    if (status === 200) {
-      response.addListener('data',   function (data) {
-        fs.writeSync(outFile, data, 0, data.length, null)
-        count += data.length
-        if ((count - notifiedCount) > 800000) {
-          console.log('Received ' + Math.floor(count / 1024) + 'K...')
-          notifiedCount = count
-        }
-      })
-
-      response.addListener('end',   function () {
-        console.log('Received ' + Math.floor(count / 1024) + 'K total.')
-        fs.closeSync(outFile)
-        fs.renameSync(writePath, filePath)
-        deferred.resolve(filePath)
-      })
-
-    } else {
-      client.abort()
+  var client = request(requestOptions)
+    .pipe(fs.createWriteStream(filePath))
+    .on('close', function() {
+      console.log('Received File')
+      deferred.resolve(filePath)
+    })
+    .on('error', function(e) {
       console.error('Error requesting archive')
-      deferred.reject(new Error('Error with http request: ' + util.inspect(response.headers)))
-    }
-  })
-
+      deferred.reject(new Error('Error with http request: ' + e))
+    })
   return deferred.promise
 }
 
@@ -261,7 +245,7 @@ function extractDownload(filePath) {
 
   } else {
     console.log('Extracting tar contents (via spawned process)')
-    cp.execFile('tar', ['jxf', filePath], options, function (err, stdout, stderr) {
+    cp.execFile('tar', ['zxf', filePath], options, function (err, stdout, stderr) {
       if (err) {
         console.error('Error extracting archive')
         deferred.reject(err)
@@ -282,7 +266,7 @@ function copyIntoPlace(extractedPath, targetPath) {
   var files = fs.readdirSync(extractedPath)
   for (var i = 0; i < files.length; i++) {
     var file = path.join(extractedPath, files[i])
-    if (fs.statSync(file).isDirectory() && file.indexOf(helper.version) != -1) {
+    if (fs.statSync(file).isDirectory() && file.indexOf(helper.remote) != -1) {
       console.log('Copying extracted folder', file, '->', targetPath)
       ncp(file, targetPath, deferred.makeNodeResolver())
       break
